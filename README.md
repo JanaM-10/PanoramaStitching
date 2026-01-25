@@ -55,8 +55,8 @@ Click Stitch to generate the panorama. The result will appear in the right-hand 
 
 - Add / Remove Images
 
-- Add Image: Add more images to the current set.
-- Remove: Remove a selected thumbnail from the loaded images.
+ Add Image: Add more images to the current set.
+ Remove: Remove a selected thumbnail from the loaded images.
 
 - Thumbnail Panel
 Click on any thumbnail to select it. A red border will indicate the current selection.
