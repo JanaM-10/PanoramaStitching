@@ -1,4 +1,4 @@
-classdef PanoramaStitching_exported < matlab.apps.AppBase
+classdef PanoramaStitchingFinal_exported < matlab.apps.AppBase
 
     % Properties that correspond to app components
     properties (Access = public)
@@ -26,175 +26,151 @@ classdef PanoramaStitching_exported < matlab.apps.AppBase
 
     methods (Access = private)
 
-    function resultImage = image_stitching(app , imagesOriginal)
-    numImages = length(imagesOriginal);
-
-        if numImages == 1
-            resultImage = imagesOriginal{1};
-            return;
-        end
-    
-    imagesGrayScale = cell(1,numImages);
-    for i=1:numImages
-        imagesGrayScale{i} = rgb2gray(im2single(imagesOriginal{i}));
-    end
-    
-    f = cell(1,numImages);
-    d = cell(1,numImages);
-    for j=1:numImages 
-       [f{j}, d{j}] = vl_sift(imagesGrayScale{j});
-    end
-    
-       if numImages == 2
-          [X1,X2,matches] = matchImages(f{1}, d{1}, f{2}, d{2});
-           H = ransac(X1, X2, matches);
-           resultImage = homographyStitchPair(H, imagesOriginal{1}, imagesOriginal{2});
-           return;
-       end
-    
-    midImageIndex = ceil(numImages/2);
-    rotationIndices = floor(numImages/2);
-    
-    if mod(numImages,2)==0
-        imgIndex1 = midImageIndex-1; 
-        imgIndex2 = midImageIndex;
-    else
-        imgIndex1 = midImageIndex; 
-        imgIndex2 = midImageIndex+1;
-    end
-
-    [X1,X2,matches] = matchImages(f{imgIndex1},d{imgIndex1},f{imgIndex2},d{imgIndex2});
-    H = ransac(X1,X2,matches);
-    resultImage = homographyStitchPair(H,imagesOriginal{imgIndex1},imagesOriginal{imgIndex2});
-    grayStitchedFeatureBase = rgb2gray(im2single(resultImage));
-    
-    if mod(numImages,2)==0
-        indicesToIgnore = -1;
-    else
-        indicesToIgnore = 1;
-    end
-    
-    for j=1:rotationIndices
-       for k = [-1,1]
-           imageIndex = midImageIndex + (j*k);
-           if imageIndex >= 1 && imageIndex <= numImages && (j*k) ~= indicesToIgnore
-               [fG,dG] = vl_sift(grayStitchedFeatureBase);
-               [X1,X2,matches] = matchImages(fG,dG,f{imageIndex},d{imageIndex});
-               H = ransac(X1,X2,matches);
-               resultImage = homographyStitchPair(H,resultImage,imagesOriginal{imageIndex});
-               grayStitchedFeatureBase = rgb2gray(im2single(resultImage));
-           end
-       end
-    end
-    
-    %figure; 
-    %imshow(resultImage);
-
-    function [X1,X2,matches] = matchImages(f1,d1,f2,d2)
-        [matches, ~] = vl_ubcmatch(d1,d2);
-        X1 = f1(1:2,matches(1,:)); X1(3,:) = 1;
-        X2 = f2(1:2,matches(2,:)); X2(3,:) = 1;
-    end
-
-    function H = ransac(X1,X2,matches)
-        clear H score ok;
-        numMatches = size(matches,2);
-        rng(300); 
-
-        for t = 1:500
-            subset = vl_colsubset(1:numMatches, 4);
-            A = [];
-            for i = subset
-                A = cat(1, A, kron(X1(:,i)', vl_hat(X2(:,i))));
+        function resultImage = image_stitching(app, imagesOriginal)
+        
+            numImages = length(imagesOriginal);
+            
+            if numImages == 1
+                resultImage = imagesOriginal{1};
+                return;
             end
-            [~,~,V] = svd(A);
-            H{t} = reshape(V(:,9),3,3);
-            X2_ = H{t} * X1;
-            du = X2_(1,:)./X2_(3,:) - X2(1,:)./X2(3,:);
-            dv = X2_(2,:)./X2_(3,:) - X2(2,:)./X2(3,:);
-            ok{t} = (du.*du + dv.*dv) < 4*4;
-            score(t) = sum(ok{t});
-        end
-        [~, best] = max(score);
+            
+            mid = ceil(numImages/2);
+            resultImage = imagesOriginal{mid};
+            imagesOriginal(mid) = [];
+            
+            
+            for i = 1:length(imagesOriginal)
+            
+                I1 = resultImage;
+                I2 = imagesOriginal{i};
+            
+                gray1 = rgb2gray(I1);
+                gray2 = rgb2gray(I2);
 
-       if size(matches,2) < 4
-        uialert(app.UIFigure, 'Not enough matching points between selected images.');
-        return;
-      end
-
-
-        H = H{best};
-    end
-
-    
-        function mosaic = homographyStitchPair(H,im1,im2)
-        box2 = [1 size(im2,2) size(im2,2) 1;
-                1 1 size(im2,1) size(im2,1);
-                1 1 1 1];
-        box2_ = inv(H) * box2;
-        box2_(1,:) = box2_(1,:) ./ box2_(3,:);
-        box2_(2,:) = box2_(2,:) ./ box2_(3,:);
-        ur = min([1 box2_(1,:)]) : max([size(im1,2) box2_(1,:)]);
-        vr = min([1 box2_(2,:)]) : max([size(im1,1) box2_(2,:)]);
-        [u,v] = meshgrid(ur,vr);
-        im1_ = vl_imwbackward(im2double(im1),u,v);
-        z_ = H(3,1)*u + H(3,2)*v + H(3,3);
-        u_ = (H(1,1)*u + H(1,2)*v + H(1,3)) ./ z_;
-        v_ = (H(2,1)*u + H(2,2)*v + H(2,3)) ./ z_;
-        im2_ = vl_imwbackward(im2double(im2),u_,v_);
-        mass = ~isnan(im1_) + ~isnan(im2_);
-        im1_(isnan(im1_)) = 0;
-        im2_(isnan(im2_)) = 0;
-        mosaic = (im1_ + im2_) ./ mass;
-    end
-    
-
-end            
+                points1 = detectSURFFeatures(gray1); % Detect & extract once
+                points2 = detectSURFFeatures(gray2);
+            
+                [features1, validPoints1] = extractFeatures(gray1, points1);
+                [features2, validPoints2] = extractFeatures(gray2, points2);
+            
+                indexPairs = matchFeatures(features1, features2, ...
+                    'Unique', true, ...
+                    'MaxRatio', 0.7, ...
+                    'MatchThreshold', 50);
+            
+                if size(indexPairs,1) < 4
+                    uialert(app.UIFigure, ...
+                        'Not enough matching points between images.', ...
+                        'Stitching Failed');
+                    return;
+                end
+            
+                matchedPoints1 = validPoints1(indexPairs(:,1));
+                matchedPoints2 = validPoints2(indexPairs(:,2));
+            
+                tform = estimateGeometricTransform2D( ...
+                    matchedPoints2, matchedPoints1, ...
+                    'projective', ...
+                    'Confidence', 99.9, ...
+                    'MaxNumTrials', 2000);
+            
+                % limits of warped image
+                [xlim, ylim] = outputLimits(tform, ...
+                    [1 size(I2,2)], ...
+                    [1 size(I2,1)]);
+            
+                xMin = floor(min([1; xlim(:)]));
+                xMax = ceil(max([size(I1,2); xlim(:)]));
+                yMin = floor(min([1; ylim(:)]));
+                yMax = ceil(max([size(I1,1); ylim(:)]));
+            
+                width  = xMax - xMin;
+                height = yMax - yMin;
+            
+                panoramaRef = imref2d([height width], [xMin xMax], [yMin yMax]);% Create reference frame
+            
+                % Warp both images into same reference
+                warpedI2 = imwarp(I2, tform, 'OutputView', panoramaRef);
+                warpedI1 = imwarp(I1, affine2d(eye(3)), 'OutputView', panoramaRef);
+         
+                mask1 = warpedI1 > 0; % Feather blending
+                mask2 = warpedI2 > 0;
+            
+                overlap = mask1 & mask2;
+            
+                resultImage = warpedI1;
+                resultImage(mask2 & ~overlap) = warpedI2(mask2 & ~overlap);
+            
+                % Smooth blend in overlap
+                alpha = 0.5;
+                resultImage(overlap) = uint8( ...
+                    alpha * double(warpedI1(overlap)) + ...
+                    (1 - alpha) * double(warpedI2(overlap)) );
+            
+            end
+            
+        end  
         
-function order = estimateImageOrder(app, images)
-    numImages = length(images);
-    scores = zeros(numImages);
-
-    for i = 1:numImages
-        gray1 = rgb2gray(im2single(images{i}));
-        [f1, d1] = vl_sift(gray1);
-        for j = i+1:numImages
-            gray2 = rgb2gray(im2single(images{j}));
-            [f2, d2] = vl_sift(gray2);
-            [matches, ~] = vl_ubcmatch(d1, d2);
-            scores(i,j) = size(matches,2);
-            scores(j,i) = size(matches,2);  
-        end
-    end
-
-    totalMatches = sum(scores,2);
-    [~, startIdx] = max(totalMatches);
+    function order = estimateImageOrder(app, images)
     
-    visited = false(1,numImages);
-    order = startIdx;
-    visited(startIdx) = true;
-
-    for k = 2:numImages
-        last = order(end);
-        scores(:,last) = -inf; 
-        [~, next] = max(scores(last,:));
-        order(end+1) = next;
-        visited(next) = true;
-    end            
+        numImages = length(images);
+        
+        features = cell(1, numImages);
+        validPoints = cell(1, numImages);
+        
+        % Precompute features 
+        for i = 1:numImages
+            gray = rgb2gray(images{i});
+            points = detectSURFFeatures(gray);
+            [features{i}, validPoints{i}] = extractFeatures(gray, points);
         end
         
+        scores = zeros(numImages);
+        
+        for i = 1:numImages
+            for j = i+1:numImages
+                indexPairs = matchFeatures(features{i}, features{j}, 'Unique', true);
+                scores(i,j) = size(indexPairs,1);
+                scores(j,i) = scores(i,j);
+            end
+        end
+        
+        % Start from most connected image
+        totalMatches = sum(scores,2);
+        [~, startIdx] = max(totalMatches);
+        
+        order = startIdx;
+        visited = false(1,numImages);
+        visited(startIdx) = true;
+        
+        for k = 2:numImages
+            last = order(end);
+            
+            row = scores(last,:);
+            row(visited) = -inf;
+            
+            [~, next] = max(row);
+            
+            order(end+1) = next;
+            visited(next) = true;
+        end
+        
+    end
+ 
         function selectThumbnail(app, index, imageObj)
-           app.SelectedIndex = index;
-
-            % Clear old borders
-            delete(findall(app.ThumbnailPanel, 'Tag', 'BorderRect'));
         
-            % Draw new border
-            pos = imageObj.Position;
-            rectangle(app.ThumbnailPanel, 'Position', pos + [-2, -2, 4, 4], ...
-                'EdgeColor', 'red', 'LineWidth', 15, 'Tag', 'BorderRect');
-                  
+            app.SelectedIndex = index;
+        
+            for i = 1:length(app.ThumbnailImages)
+                app.ThumbnailImages(i).BorderWidth = 0;
+            end
+   
+            imageObj.BorderWidth = 3;
+            imageObj.BorderColor = 'red';
+        
         end
+
         
         function updateMontage(app)
            
@@ -225,6 +201,8 @@ function order = estimateImageOrder(app, images)
             
         end
        
+
+        
       end
                   
 
@@ -245,25 +223,20 @@ function order = estimateImageOrder(app, images)
                 filenames = {filenames}; % Wrap in cell if only one file
             end
         
-            % Clear previous data
             app.ImagesOriginal = cell(1, numel(filenames));
             delete(findall(app.ThumbnailPanel, 'Type', 'uiimage'));
             delete(findall(app.ThumbnailPanel, 'Type', 'rectangle'));
             app.ThumbnailImages = gobjects(1, length(filenames));
             app.SelectedIndex = 0;
         
-
-            % Read, convert and scale images
             for i = 1:numel(filenames)
                 fullPath = fullfile(pathname, filenames{i});
                 img = imread(fullPath);
-        
-                % Normalize datatype
+                
                 if ~isa(img, 'uint8')
-                    img = im2uint8(img);
+                    img = im2uint8(img); % Normalization
                 end
-        
-                % Convert grayscale to RGB
+
                 if ndims(img) == 2 || (ndims(img) == 3 && size(img, 3) == 1)
                     img = cat(3, img, img, img);  % Convert grayscale to RGB
                 end
@@ -276,8 +249,7 @@ function order = estimateImageOrder(app, images)
         
                 app.ImagesOriginal{i} = img;
             end
-        
-            % Refresh GUI
+
             updateMontage(app);
             updateThumbnails(app);
         end
@@ -289,8 +261,8 @@ function order = estimateImageOrder(app, images)
                 return;
             end
             
-            app.UIFigure.Pointer = 'watch'; % denote loading for user clarity
-            cla(app.UIAxes2);  %Clear the stitched image axes
+            app.UIFigure.Pointer = 'watch';
+            cla(app.UIAxes2);  % Clear the stitched image axes
             drawnow;
 
             if app.UseSimilarityOrderingCheckBox.Value == 1
@@ -321,15 +293,12 @@ function order = estimateImageOrder(app, images)
                 return;
             end
         
-            % Remove the selected image and thumbnail
             app.ImagesOriginal(idx) = [];
             app.ThumbnailImages(idx) = [];
         
-            % Reset selection and clear border
             app.SelectedIndex = 0;
-            delete(findall(app.ThumbnailPanel, 'Tag', 'BorderRect'));
+            delete(findall(app.ThumbnailPanel, 'Tag', 'BorderRect')); % Reset selection and clear border
         
-            % Refresh thumbnails and montage
             updateThumbnails(app);
             updateMontage(app);
         end
@@ -347,26 +316,21 @@ function order = estimateImageOrder(app, images)
         
             img = imread(fullfile(pathname, filename));
         
-            % Normalize datatype
             if ~isa(img, 'uint8')
                 img = im2uint8(img);
             end
-        
-            % Convert grayscale to RGB
-            if ndims(img) == 2 || (ndims(img, 3) == 1)
+
+            if ndims(img) == 2 || (ndims(img) == 3 && size(img,3) == 1)
                 img = cat(3, img, img, img);
             end
         
-            % Resize if too large
             scale = max(size(img, 1), size(img, 2));
             if scale > 400
                 img = imresize(img, 400 / scale);
             end
-        
-            % Add image to the list
+
             app.ImagesOriginal{end + 1} = img;
-        
-            % Refresh GUI
+
             updateMontage(app);
             updateThumbnails(app);
 
@@ -462,7 +426,7 @@ function order = estimateImageOrder(app, images)
     methods (Access = public)
 
         % Construct app
-        function app = PanoramaStitching_exported
+        function app = PanoramaStitchingFinal_exported
 
             % Create UIFigure and components
             createComponents(app)
