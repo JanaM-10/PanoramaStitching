@@ -1,4 +1,4 @@
-ر# Panorama Image Stitcher
+# Panorama Image Stitcher
 
 ![MATLAB](https://img.shields.io/badge/MATLAB-App_Designer-orange) ![Computer Vision Toolbox](https://img.shields.io/badge/MATLAB-Computer_Vision_Toolbox-blue)
 
