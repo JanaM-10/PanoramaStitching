@@ -1,81 +1,77 @@
-# Panorama Stitching using MATLAB
+ر# Panorama Image Stitcher
 
-## Overview
+![MATLAB](https://img.shields.io/badge/MATLAB-App_Designer-orange) ![Computer Vision Toolbox](https://img.shields.io/badge/MATLAB-Computer_Vision_Toolbox-blue)
 
-This project implements **Panorama Stitching** using **SIFT features** and **RANSAC-based homography estimation** in MATLAB.  
-It allows users to load multiple images, optionally reorder them by similarity, and generate a stitched panorama using a simple **MATLAB App UI**.
+A MATLAB app that stitches multiple overlapping photos into a single panorama, using SURF feature matching and projective homography estimation — built entirely on MATLAB's Computer Vision Toolbox, with no external dependencies required.
 
-The stitching pipeline supports:
-- Feature extraction with **SIFT** (`vl_sift`)  
-- Feature matching (`vl_ubcmatch`)  
-- Homography estimation using **RANSAC**  
-- Image warping and blending for seamless panoramas  
+## Approach
 
----
+1. Pick the middle image (by index) as a fixed anchor.
+2. For each remaining image, detect SURF keypoints, match features against the current stitched result, and estimate a projective transform with `estimateGeometricTransform2D`.
+3. Warp both the current result and the new image into a shared reference frame sized to fit both.
+4. Blend the overlap region with a flat 50/50 alpha average; non-overlapping regions are copied directly from whichever image covers them.
+5. Repeat until every image has been merged into the growing panorama.
 
+An optional **similarity ordering** mode is also included: before stitching, it estimates a sensible processing order by counting SURF feature matches between every pair of images and greedily chaining together the most similar neighbors.
 
----
+## App Interface
 
-## Requirements
+- Load any number of images via file picker, with live thumbnails
+- Click a thumbnail to select and remove a specific image
+- Optional similarity-ordering checkbox
+- One-click stitching with visual loading state
+- Side-by-side view of source montage and final stitched output
 
-- **MATLAB R2022a or later** (App Designer compatible)  
-- **VLFeat library** for SIFT features: [VLFeat download](http://www.vlfeat.org/)  
-  (Make sure to run `vl_setup` before using the app)  
+## Sample Results
 
-Optional: MATLAB Image Processing Toolbox for image reading, resizing, and display.
+| Images | Result |
+|---|---|
+| `1.jpeg`, `2.jpeg` | `results/result2.png` |
+| `desk1–4.jpeg` | `results/result3.png`, `results/result3-high.png` |
+| `fence1–3.jpeg`, `scene1–2.jpeg` | `results/result4-desk.png` |
 
----
+## Project Structure
 
-## Installation & Setup
+```
+PanoramaStitching/
+├─ README.md
+├─ PanoramaStitchingFinal_exported.m
+├─ sample_images/
+│  ├─ 1.jpeg, 2.jpeg, 3.jpeg
+│  ├─ desk1.jpeg – desk4.jpeg
+│  ├─ fence1.jpeg – fence3.jpeg
+│  └─ scene1.jpeg, scene2.jpeg
+└─ results/
+   ├─ result2.png
+   ├─ result3.png
+   ├─ result3-high.png
+   └─ result4-desk.png
+```
 
-## 1. Clone the repository:
+## Setup & Dependencies
 
-bash
-git clone https://github.com/YOUR_USERNAME/panorama-stitching-matlab.git
-cd panorama-stitching-matlab
+- MATLAB (R2021a or later recommended)
+- Computer Vision Toolbox — provides `detectSURFFeatures`, `extractFeatures`, `matchFeatures`, `estimateGeometricTransform2D`
+- Image Processing Toolbox
 
-## 2.Open MATLAB and add the VLFeat toolbox to your path:
-run('path_to_vlfeat/toolbox/vl_setup.m')
-
-## 3.Open the app in MATLAB:
-open('PanoramaStitching_exported.m')
-
----
+No external libraries required — everything runs on MATLAB's built-in toolboxes.
 
 ## Usage
 
-- Load Images
-Click Load Images in the App and select multiple images for stitching.
+1. Open `PanoramaStitchingFinal_exported.m` in MATLAB (or its App Designer `.mlapp` source, if available).
+2. Click **Load Images** and select a set of overlapping photos.
+3. (Optional) Enable **Use Similarity Ordering** to auto-sequence the images.
+4. Click **Stitch**.
 
-- Optional: Similarity Ordering
-Check Use Similarity Ordering to automatically reorder images based on feature similarity.
+## Known Limitations
 
-- Stitch Images
-Click Stitch to generate the panorama. The result will appear in the right-hand axes.
+- Overlap blending is a flat 50/50 alpha average, not distance-weighted feathering, so visible seams can appear in high-contrast overlaps.
+- Every image is aligned against a single fixed anchor rather than progressively refined against the growing panorama, which can accumulate distortion with many images.
+- No cylindrical/spherical projection, so wide panoramas show perspective stretching toward the edges.
 
-- Add / Remove Images
+## Possible Extensions
 
- 1.Add Image: Add more images to the current set.
- 2.Remove: Remove a selected thumbnail from the loaded images.
-
-- Thumbnail Panel
-Click on any thumbnail to select it. A red border will indicate the current selection.
-
----
-
-## Notes
-
-- Ensure the VLFeat toolbox is installed and set up in MATLAB.
-
-- Large images are automatically resized to a maximum dimension of 400 pixels for faster processing.
-
-- If images do not have enough matching points, stitching may fail.
-
-- Works best with overlapping images and consistent lighting conditions.
-
-
-
-
-
-
-
+- Cylindrical projection prior to warping, to reduce edge distortion on wide panoramas
+- True distance-weighted feather blending across seams
+- Exposure/color compensation between source images
+- Progressive re-anchoring or global bundle adjustment across all images
