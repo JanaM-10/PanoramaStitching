@@ -1,6 +1,6 @@
 # Panorama Image Stitcher
 
-![MATLAB](https://img.shields.io/badge/MATLAB-App_Designer-orange) ![Computer Vision Toolbox](https://img.shields.io/badge/MATLAB-Computer_Vision_Toolbox-blue)
+![MATLAB](https://img.shields.io/badge/MATLAB-R2021a%2B-orange) ![Computer Vision Toolbox](https://img.shields.io/badge/MATLAB-Computer_Vision_Toolbox-blue)
 
 A MATLAB app that stitches multiple overlapping photos into a single panorama, using SURF feature matching and projective homography estimation — built entirely on MATLAB's Computer Vision Toolbox, with no external dependencies required.
 
@@ -24,11 +24,22 @@ An optional **similarity ordering** mode is also included: before stitching, it 
 
 ## Sample Results
 
-| Images | Result |
-|---|---|
-| `1.jpeg`, `2.jpeg` | `results/result2.png` |
-| `desk1–4.jpeg` | `results/result3.png`, `results/result3-high.png` |
-| `fence1–3.jpeg`, `scene1–2.jpeg` | `results/result4-desk.png` |
+**1.jpeg + 2.jpeg:**
+
+![Two-image stitch result](results/result2.png)
+
+**desk1.jpeg – desk4.jpeg:**
+
+<table>
+<tr>
+<td><img src="results/result3.png" width="380"></td>
+<td><img src="results/result3-high.png" width="380"></td>
+</tr>
+</table>
+
+**fence1–3.jpeg + scene1–2.jpeg:**
+
+![Four-image stitch result](results/result4-desk.png)
 
 ## Project Structure
 
