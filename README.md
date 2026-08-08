@@ -28,7 +28,7 @@ An optional **similarity ordering** mode is also included: before stitching, it 
 
 ![Two-image stitch result](results/result2.png)
 
-**desk1.jpeg – desk4.jpeg:**
+**fence1–3.jpeg + scene1–2.jpeg:**
 
 <table>
 <tr>
@@ -37,7 +37,7 @@ An optional **similarity ordering** mode is also included: before stitching, it 
 </tr>
 </table>
 
-**fence1–3.jpeg + scene1–2.jpeg:**
+**desk1.jpeg – desk4.jpeg:**
 
 ![Four-image stitch result](results/result4-desk.png)
 
